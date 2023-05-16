@@ -15,6 +15,10 @@ class _CameraPageState extends State<CameraPage> {
   bool _isRecording = false;
   FlashMode flashMode = FlashMode.off;
   late CameraController _cameraController;
+  double _baseScale = 1.0;
+  double _currentScale = 1.0;
+  double _minAvailableZoom = 1.0;
+  double _maxAvailableZoom = 1.0;
 
   @override
   void initState() {
@@ -37,6 +41,9 @@ class _CameraPageState extends State<CameraPage> {
     _cameraController = CameraController(back, ResolutionPreset.max);
     await _cameraController.initialize();
     await _cameraController.lockCaptureOrientation(DeviceOrientation.landscapeRight);
+    _minAvailableZoom = await _cameraController.getMinZoomLevel();
+    _maxAvailableZoom = await _cameraController.getMaxZoomLevel();
+
     setState(() => _isLoading = false);
   }
 
@@ -70,6 +77,35 @@ class _CameraPageState extends State<CameraPage> {
 
   }
 
+  void onScaleStart(ScaleStartDetails details) {
+    _baseScale = _currentScale;
+  }
+
+  void onScaleUpdate(ScaleUpdateDetails details) {
+    var dragIntensity = details.scale;
+    if (dragIntensity < 1) {
+      // 1 is the minimum zoom level required by the camController's method, hence setting 1 if the user zooms out (less than one is given to details when you zoom-out/pinch-in).
+      _currentScale = 1.0;
+      _cameraController.setZoomLevel(1);
+    } else if (dragIntensity > 1 && dragIntensity < _maxAvailableZoom) {
+      // self-explanatory, that if the maxZoomLevel exceeds, you will get an error (greater than one is given to details when you zoom-in/pinch-out).
+      _currentScale = dragIntensity;
+      _cameraController.setZoomLevel(dragIntensity);
+    } else {
+      // if it does exceed, you can provide the maxZoomLevel instead of dragIntensity (this block is executed whenever you zoom-in/pinch-out more than the max zoom level).
+      _currentScale = _maxAvailableZoom;
+      _cameraController.setZoomLevel(_maxAvailableZoom);
+    }
+
+    /*setState(() {
+      _currentScale = _baseScale * details.scale.clamp(_minAvailableZoom, _maxAvailableZoom);
+    });*/
+  }
+
+  void onScaleEnd(ScaleEndDetails details) {
+    _cameraController.setZoomLevel(_currentScale);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -84,7 +120,17 @@ class _CameraPageState extends State<CameraPage> {
         child: Stack(
           alignment: Alignment.centerRight,
           children: [
-            CameraPreview(_cameraController),
+            GestureDetector(
+              onScaleStart: onScaleStart,
+              onScaleUpdate: onScaleUpdate,
+              onScaleEnd: onScaleEnd,
+              child: AspectRatio(
+                aspectRatio: _cameraController.value.aspectRatio,
+                child: CameraPreview(_cameraController),
+              ),
+            ),
+            //CameraPreview(_cameraController),
+
             Padding(
               padding: const EdgeInsets.all(25),
               child: FloatingActionButton(
