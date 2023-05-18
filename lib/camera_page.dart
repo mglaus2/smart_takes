@@ -43,6 +43,7 @@ class _CameraPageState extends State<CameraPage> {
     await _cameraController.lockCaptureOrientation(DeviceOrientation.landscapeRight);
     _minAvailableZoom = await _cameraController.getMinZoomLevel();
     _maxAvailableZoom = await _cameraController.getMaxZoomLevel();
+    print(_maxAvailableZoom);
 
     setState(() => _isLoading = false);
   }
@@ -82,28 +83,20 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void onScaleUpdate(ScaleUpdateDetails details) {
-    var dragIntensity = details.scale;
-    if (dragIntensity < 1) {
-      // 1 is the minimum zoom level required by the camController's method, hence setting 1 if the user zooms out (less than one is given to details when you zoom-out/pinch-in).
+    double dragIntensity = details.scale;
+    _currentScale = _baseScale * dragIntensity;
+
+    if (_currentScale < _minAvailableZoom) {
+      _cameraController.setZoomLevel(1.0);
       _currentScale = 1.0;
-      _cameraController.setZoomLevel(1);
-    } else if (dragIntensity > 1 && dragIntensity < _maxAvailableZoom) {
-      // self-explanatory, that if the maxZoomLevel exceeds, you will get an error (greater than one is given to details when you zoom-in/pinch-out).
-      _currentScale = dragIntensity;
-      _cameraController.setZoomLevel(dragIntensity);
-    } else {
-      // if it does exceed, you can provide the maxZoomLevel instead of dragIntensity (this block is executed whenever you zoom-in/pinch-out more than the max zoom level).
-      _currentScale = _maxAvailableZoom;
-      _cameraController.setZoomLevel(_maxAvailableZoom);
     }
-
-    /*setState(() {
-      _currentScale = _baseScale * details.scale.clamp(_minAvailableZoom, _maxAvailableZoom);
-    });*/
-  }
-
-  void onScaleEnd(ScaleEndDetails details) {
-    _cameraController.setZoomLevel(_currentScale);
+    if (_currentScale > 1 && _currentScale < _maxAvailableZoom) {
+      _cameraController.setZoomLevel(_currentScale);
+    }
+    if (_currentScale >= _maxAvailableZoom){
+      _cameraController.setZoomLevel(_maxAvailableZoom);
+      _currentScale = _maxAvailableZoom;
+    }
   }
 
   @override
@@ -123,7 +116,6 @@ class _CameraPageState extends State<CameraPage> {
             GestureDetector(
               onScaleStart: onScaleStart,
               onScaleUpdate: onScaleUpdate,
-              onScaleEnd: onScaleEnd,
               child: AspectRatio(
                 aspectRatio: _cameraController.value.aspectRatio,
                 child: CameraPreview(_cameraController),
