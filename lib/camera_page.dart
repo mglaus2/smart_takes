@@ -13,12 +13,15 @@ class CameraPage extends StatefulWidget {
 class _CameraPageState extends State<CameraPage> {
   bool _isLoading = true;
   bool _isRecording = false;
+  bool _showFocusCircle = false;
   FlashMode flashMode = FlashMode.off;
   late CameraController _cameraController;
   double _baseScale = 1.0;
   double _currentScale = 1.0;
   double _minAvailableZoom = 1.0;
   double _maxAvailableZoom = 1.0;
+  double x = 0;
+  double y = 0;
 
   @override
   void initState() {
@@ -102,8 +105,9 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   void _onTapDown(TapDownDetails details) {
-    double x = details.localPosition.dx;
-    double y = details.localPosition.dy;
+    _showFocusCircle = true;
+    x = details.localPosition.dx;
+    y = details.localPosition.dy;
 
     double fullWidth = MediaQuery.of(context).size.width;
     double cameraHeight = fullWidth * _cameraController.value.aspectRatio;
@@ -114,6 +118,14 @@ class _CameraPageState extends State<CameraPage> {
 
     _cameraController.setFocusPoint(point);
     _cameraController.setExposurePoint(point);
+
+    setState(() {
+      Future.delayed(const Duration(seconds: 2)).whenComplete(() {
+        setState(() {
+          _showFocusCircle = false;
+        });
+      });
+    });
   }
 
   @override
@@ -134,9 +146,25 @@ class _CameraPageState extends State<CameraPage> {
               onScaleStart: _onScaleStart,
               onScaleUpdate: _onScaleUpdate,
               onTapDown: _onTapDown,
-              child: AspectRatio(
-                aspectRatio: _cameraController.value.aspectRatio,
-                child: CameraPreview(_cameraController),
+              child: Stack (
+                children: [
+                  AspectRatio(
+                    aspectRatio: _cameraController.value.aspectRatio,
+                    child: CameraPreview(_cameraController),
+                  ),
+                  if(_showFocusCircle) Positioned(
+                    top: y-20,
+                    left: x-20,
+                    child: Container(
+                      height: 40,
+                      width: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white,width: 1.5)
+                      )
+                    )
+                  )
+                ],
               ),
             ),
 
