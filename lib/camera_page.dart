@@ -41,9 +41,11 @@ class _CameraPageState extends State<CameraPage> {
     _cameraController = CameraController(back, ResolutionPreset.max);
     await _cameraController.initialize();
     await _cameraController.lockCaptureOrientation(DeviceOrientation.landscapeRight);
+    await _cameraController.setExposureMode(ExposureMode.auto);
+    await _cameraController.setFocusMode(FocusMode.auto);
+
     _minAvailableZoom = await _cameraController.getMinZoomLevel();
     _maxAvailableZoom = await _cameraController.getMaxZoomLevel();
-    print(_maxAvailableZoom);
 
     setState(() => _isLoading = false);
   }
@@ -78,11 +80,11 @@ class _CameraPageState extends State<CameraPage> {
 
   }
 
-  void onScaleStart(ScaleStartDetails details) {
+  void _onScaleStart(ScaleStartDetails details) {
     _baseScale = _currentScale;
   }
 
-  void onScaleUpdate(ScaleUpdateDetails details) {
+  void _onScaleUpdate(ScaleUpdateDetails details) {
     double dragIntensity = details.scale;
     _currentScale = _baseScale * dragIntensity;
 
@@ -97,6 +99,21 @@ class _CameraPageState extends State<CameraPage> {
       _cameraController.setZoomLevel(_maxAvailableZoom);
       _currentScale = _maxAvailableZoom;
     }
+  }
+
+  void _onTapDown(TapDownDetails details) {
+    double x = details.localPosition.dx;
+    double y = details.localPosition.dy;
+
+    double fullWidth = MediaQuery.of(context).size.width;
+    double cameraHeight = fullWidth * _cameraController.value.aspectRatio;
+
+    double xp = x / fullWidth;
+    double yp = y / cameraHeight;
+    Offset point = Offset(xp,yp);
+
+    _cameraController.setFocusPoint(point);
+    _cameraController.setExposurePoint(point);
   }
 
   @override
@@ -114,14 +131,14 @@ class _CameraPageState extends State<CameraPage> {
           alignment: Alignment.centerRight,
           children: [
             GestureDetector(
-              onScaleStart: onScaleStart,
-              onScaleUpdate: onScaleUpdate,
+              onScaleStart: _onScaleStart,
+              onScaleUpdate: _onScaleUpdate,
+              onTapDown: _onTapDown,
               child: AspectRatio(
                 aspectRatio: _cameraController.value.aspectRatio,
                 child: CameraPreview(_cameraController),
               ),
             ),
-            //CameraPreview(_cameraController),
 
             Padding(
               padding: const EdgeInsets.all(25),
