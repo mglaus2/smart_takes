@@ -6,6 +6,8 @@
     <string>Needed for recording videos.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Needed for recording videos.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Needed for accessing gallery</string>
     <key>NSAppTransportSecurity</key>
     <dict>
        <key>NSAllowsArbitraryLoads</key>

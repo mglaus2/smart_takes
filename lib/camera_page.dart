@@ -14,6 +14,7 @@ class _CameraPageState extends State<CameraPage> {
   bool _isLoading = true;
   bool _isRecording = false;
   bool _showFocusCircle = false;
+
   FlashMode flashMode = FlashMode.off;
   late CameraController _cameraController;
   double _baseScale = 1.0;
@@ -198,7 +199,7 @@ class _CameraPageState extends State<CameraPage> {
                     child: Icon(flashMode == FlashMode.off ? Icons.flashlight_off : Icons.flashlight_on),
                     onPressed: () {
                       setState(() {
-                        _toggleFlash();
+
                       });
                     }
                 ),

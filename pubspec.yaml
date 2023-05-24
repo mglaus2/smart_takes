@@ -38,6 +38,10 @@ dependencies:
   cupertino_icons: ^1.0.2
   camera: ^0.10.4
   video_player: ^2.2.6
+  path_provider: ^2.0.15
+  gallery_saver: ^2.3.2
+  ffmpeg_kit_flutter: ^5.1.0
+  image_picker: ^0.8.7+5
 
 dev_dependencies:
   flutter_test:
