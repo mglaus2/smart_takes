@@ -126,8 +126,8 @@ class _CameraPageState extends State<CameraPage> {
     double yp = y / cameraHeight;
     Offset point = Offset(xp, yp);
 
-    _cameraController.setFocusPoint(point);
     _cameraController.setExposurePoint(point);
+    _cameraController.setFocusPoint(point);
 
     setState(() {
       Future.delayed(const Duration(seconds: 2)).whenComplete(() {
@@ -173,9 +173,11 @@ class _CameraPageState extends State<CameraPage> {
                                       translation: const Offset(-0.5, 0.0),
                                       child: FloatingActionButton(
                                         backgroundColor: Colors.red,
-                                        child: Icon(_isRecording
-                                            ? Icons.stop
-                                            : Icons.fiber_manual_record),
+                                        child: Icon(
+                                          _isRecording
+                                              ? Icons.stop
+                                              : Icons.fiber_manual_record,
+                                        ),
                                         onPressed: () => _recordVideo(),
                                       ),
                                     ),
@@ -235,7 +237,7 @@ class _CameraPageState extends State<CameraPage> {
                     child: Align(
                       alignment: Alignment.topLeft,
                       child: FractionalTranslation(
-                        translation: Offset(0.0, 0.1),
+                        translation: Offset(0.0, 1),
                         child: GestureDetector(
                           child: _currentResolution == ResolutionPreset.max
                               ? const Text("4k", style: cameraStyle)
@@ -265,25 +267,23 @@ class _CameraPageState extends State<CameraPage> {
                   SafeArea(
                     child: Align(
                       alignment: Alignment.bottomLeft,
-                      child: FractionalTranslation(
-                        translation: Offset(0.0, 0.1),
-                        child: IconButton(
-                            splashColor: Colors.transparent,
-                            icon: Icon(
-                              flashMode == FlashMode.off
-                                  ? Icons.flash_off
-                                  : Icons.flash_on,
-                              size: 20,
-                              color: flashMode == FlashMode.off
-                                  ? Colors.white
-                                  : Colors.yellow,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _toggleFlash();
-                              });
-                            }),
-                      ),
+                      child: IconButton(
+                          splashColor: Colors.transparent,
+                          highlightColor: Colors.transparent,
+                          icon: Icon(
+                            flashMode == FlashMode.off
+                                ? Icons.flash_off
+                                : Icons.flash_on,
+                            size: 20,
+                            color: flashMode == FlashMode.off
+                                ? Colors.white
+                                : Colors.yellow,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _toggleFlash();
+                            });
+                          }),
                     ),
                   ),
                 ],

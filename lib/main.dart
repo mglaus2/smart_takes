@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+
 import 'camera_page.dart';
 
 void main() {
@@ -7,17 +9,44 @@ void main() {
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeRight,
   ]);
-  runApp(const MyApp());
+  runApp(const HomePage());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class HomePage extends StatefulWidget {
+  const HomePage({Key? key}) : super(key: key);
+
+  @override
+  _HomePageState createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  double y = 0;
+
+  @override
+  void initState() {
+    gyroscopeEvents.listen((GyroscopeEvent event) {
+      y = event.y;
+
+      if(y > 2.5 || y < -2.5) {
+        setState(() {});
+      }
+    });
+
+    super.initState();
+  }
+
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: CameraPage(),
-    );
+    if(y > 0) {
+      return Container(
+        color: Colors.blue,
+      );
+    } else {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: CameraPage(),
+      );
+    }
   }
 }
