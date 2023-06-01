@@ -1,20 +1,28 @@
 import 'dart:developer';
-
+import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+import 'package:smart_takes_app/components/curved_slider.dart';
+import 'package:smart_takes_app/components/zoom_control.dart';
+import 'package:smart_takes_app/pages/settings_page.dart';
+import 'constants/widget_constants.dart';
 import 'video_page.dart';
 
-const TextStyle cameraStyle = TextStyle(color: Colors.white);
-
 class CameraPage extends StatefulWidget {
-  const CameraPage({Key? key}) : super(key: key);
+  final String? cameraDirection;
+
+  const CameraPage({Key? key, this.cameraDirection})
+      : super(key: key); // Update the constructor
 
   @override
   _CameraPageState createState() => _CameraPageState();
 }
 
 class _CameraPageState extends State<CameraPage> {
+  String? cameraDirection;
+
   bool _isLoading = true;
   bool _isRecording = false;
   bool _showFocusCircle = false;
@@ -28,13 +36,29 @@ class _CameraPageState extends State<CameraPage> {
   double _maxAvailableZoom = 1.0;
   double x = 0;
   double y = 0;
+  double gyroscopeY = 0;
+  bool cameraActive = false;
 
   @override
   void initState() {
+    gyroscopeEvents.listen((GyroscopeEvent event) {
+      gyroscopeY = event.y;
+
+      if (gyroscopeY > 2.5 || gyroscopeY < -2.5) {
+        setState(() {
+          cameraActive = true;
+        });
+      }
+    });
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeRight,
     ]);
-    _initCamera(CameraLensDirection.back, _currentResolution);
+    print(widget.cameraDirection);
+    _initCamera(
+        widget.cameraDirection == "back"
+            ? CameraLensDirection.back
+            : CameraLensDirection.front,
+        _currentResolution);
     super.initState();
   }
 
@@ -138,157 +162,225 @@ class _CameraPageState extends State<CameraPage> {
     });
   }
 
+  void handleZoomChanged(double value) {
+    setState(() {
+      _currentScale = value;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: _isLoading
-          ? Container(
-              color: Colors.black,
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            )
-          : Center(
-              child: Stack(
-                alignment: Alignment.centerRight,
-                children: [
-                  GestureDetector(
-                    onScaleStart: _onScaleStart,
-                    onScaleUpdate: _onScaleUpdate,
-                    onTapDown: _onTapDown,
-                    child: Stack(
-                      children: [
-                        Center(
-                          child: Stack(
-                            children: [
-                              AspectRatio(
-                                aspectRatio:
-                                    _cameraController.value.aspectRatio,
-                                child: CameraPreview(
-                                  _cameraController,
-                                  child: Align(
-                                    alignment: Alignment.centerRight,
-                                    child: FractionalTranslation(
-                                      translation: const Offset(-0.5, 0.0),
-                                      child: FloatingActionButton(
-                                        backgroundColor: Colors.red,
-                                        child: Icon(
-                                          _isRecording
-                                              ? Icons.stop
-                                              : Icons.fiber_manual_record,
-                                        ),
-                                        onPressed: () => _recordVideo(),
+    if (!cameraActive) {
+      return Container(
+        color: Colors.red,
+        child: const Text("Lift the screent to start recording"),
+      );
+    } else {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: _isLoading
+            ? Container(
+                color: Colors.black,
+                child: const Center(
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            : Center(
+                child: Stack(
+                  alignment: Alignment.centerRight,
+                  children: [
+                    GestureDetector(
+                      onScaleStart: _onScaleStart,
+                      onScaleUpdate: _onScaleUpdate,
+                      onTapDown: _onTapDown,
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: Stack(
+                              children: [
+                                AspectRatio(
+                                  aspectRatio:
+                                      _cameraController.value.aspectRatio,
+                                  child: CameraPreview(
+                                    _cameraController,
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsets.only(right: 15.0),
+                                      child: Stack(
+                                        children: [
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: Transform.rotate(
+                                              angle: math.pi / 2,
+                                              child: SemiCircleSlider(
+                                                initialValue: _currentScale,
+                                                divisions: 11,
+                                                onChanged: (value) async {
+                                                  setState(() {
+                                                    _currentScale = value;
+                                                  });
+                                                  await _cameraController!
+                                                      .setZoomLevel(value);
+                                                },
+                                              ),
+                                            ),
+                                          ),
+                                          Align(
+                                            alignment: Alignment.topRight,
+                                            child: IconButton(
+                                                icon: const Icon(
+                                                  Icons.settings,
+                                                  size: 30,
+                                                ),
+                                                onPressed: () async {
+                                                  final result =
+                                                      await Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            const SettingsPage()),
+                                                  );
+
+                                                  // Check if the camera direction has changed and rebuild the camera page
+                                                  if (result != null) {
+                                                    final cameraDirection =
+                                                        result as String;
+                                                    setState(() {
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                            builder: (context) =>
+                                                                CameraPage(
+                                                                    cameraDirection:
+                                                                        cameraDirection)),
+                                                      );
+                                                    });
+                                                  }
+                                                }),
+                                          ),
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: FloatingActionButton(
+                                              backgroundColor: Colors.red,
+                                              child: Icon(
+                                                _isRecording
+                                                    ? Icons.stop
+                                                    : Icons.fiber_manual_record,
+                                              ),
+                                              onPressed: () => _recordVideo(),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        if (_showFocusCircle)
-                          Positioned(
-                              top: y - 20,
-                              left: x - 20,
-                              child: Container(
-                                  height: 40,
-                                  width: 40,
-                                  decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: Colors.white, width: 1.5))))
-                      ],
+                          if (_showFocusCircle)
+                            Positioned(
+                                top: y - 20,
+                                left: x - 20,
+                                child: Container(
+                                    height: 40,
+                                    width: 40,
+                                    decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.white, width: 1.5))))
+                        ],
+                      ),
                     ),
-                  ),
-                  SafeArea(
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: FractionalTranslation(
-                        translation: Offset(0.0, -2),
-                        child: SizedBox(
-                          width: MediaQuery.of(context).size.width / 2,
-                          height: 10,
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Slider(
-                                  value: _currentScale,
-                                  min: _minAvailableZoom,
-                                  max: _maxAvailableZoom / 10,
-                                  activeColor: Colors.white,
-                                  inactiveColor: Colors.white30,
-                                  onChanged: (value) async {
-                                    setState(() {
-                                      _currentScale = value;
-                                    });
-                                    await _cameraController!
-                                        .setZoomLevel(value);
-                                  },
+                    SafeArea(
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: FractionalTranslation(
+                          translation: Offset(0.0, -2),
+                          child: SizedBox(
+                            width: MediaQuery.of(context).size.width / 2,
+                            height: 10,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Slider(
+                                    value: _currentScale,
+                                    min: _minAvailableZoom,
+                                    max: _maxAvailableZoom / 10,
+                                    activeColor: Colors.white,
+                                    inactiveColor: Colors.white30,
+                                    onChanged: (value) async {
+                                      setState(() {
+                                        _currentScale = value;
+                                      });
+                                      await _cameraController!
+                                          .setZoomLevel(value);
+                                    },
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  SafeArea(
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: FractionalTranslation(
-                        translation: Offset(0.0, 1),
-                        child: GestureDetector(
-                          child: _currentResolution == ResolutionPreset.max
-                              ? const Text("4k", style: cameraStyle)
-                              : const Text(
-                                  "HD",
-                                  style: cameraStyle,
-                                ),
-                          onTap: () {
-                            if (_currentResolution == ResolutionPreset.max) {
-                              _initCamera(CameraLensDirection.back,
-                                  ResolutionPreset.veryHigh);
-                              setState(() {
-                                _currentResolution = ResolutionPreset.veryHigh;
-                              });
-                            } else {
-                              _initCamera(CameraLensDirection.back,
-                                  ResolutionPreset.max);
-                              setState(() {
-                                _currentResolution = ResolutionPreset.max;
-                              });
-                            }
-                          },
+                    SafeArea(
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: FractionalTranslation(
+                          translation: Offset(0.0, 1),
+                          child: GestureDetector(
+                            child: _currentResolution == ResolutionPreset.max
+                                ? const Text("4k")
+                                : const Text(
+                                    "HD",
+                                  ),
+                            onTap: () {
+                              if (_currentResolution == ResolutionPreset.max) {
+                                _initCamera(CameraLensDirection.back,
+                                    ResolutionPreset.veryHigh);
+                                setState(() {
+                                  _currentResolution =
+                                      ResolutionPreset.veryHigh;
+                                });
+                              } else {
+                                _initCamera(CameraLensDirection.back,
+                                    ResolutionPreset.max);
+                                setState(() {
+                                  _currentResolution = ResolutionPreset.max;
+                                });
+                              }
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  SafeArea(
-                    child: Align(
-                      alignment: Alignment.bottomLeft,
-                      child: IconButton(
-                          splashColor: Colors.transparent,
-                          highlightColor: Colors.transparent,
-                          icon: Icon(
-                            flashMode == FlashMode.off
-                                ? Icons.flash_off
-                                : Icons.flash_on,
-                            size: 20,
-                            color: flashMode == FlashMode.off
-                                ? Colors.white
-                                : Colors.yellow,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _toggleFlash();
-                            });
-                          }),
+                    SafeArea(
+                      child: Align(
+                        alignment: Alignment.bottomLeft,
+                        child: IconButton(
+                            splashColor: Colors.transparent,
+                            highlightColor: Colors.transparent,
+                            icon: Icon(
+                              flashMode == FlashMode.off
+                                  ? Icons.flash_off
+                                  : Icons.flash_on,
+                              size: 20,
+                              color: flashMode == FlashMode.off
+                                  ? Colors.white
+                                  : Colors.yellow,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _toggleFlash();
+                              });
+                            }),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-    );
+      );
+    }
   }
 }

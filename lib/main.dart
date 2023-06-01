@@ -1,52 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smart_takes_app/constants/shared_preferences_constants.dart';
 
 import 'camera_page.dart';
+import 'constants/widget_constants.dart';
 
-void main() {
+Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  final prefs = await SharedPreferences.getInstance();
+  if (prefs.getString(kCameraDirection) == null) {
+    prefs.setString(kCameraDirection, "back");
+  }
+  var direction = prefs.getString(kCameraDirection);
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.landscapeRight,
   ]);
-  runApp(const HomePage());
+  runApp(HomePage(cameraDirection: direction));
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  final String? cameraDirection;
+  const HomePage({Key? key, this.cameraDirection}) : super(key: key);
 
   @override
   _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  double y = 0;
-
-  @override
-  void initState() {
-    gyroscopeEvents.listen((GyroscopeEvent event) {
-      y = event.y;
-
-      if(y > 2.5 || y < -2.5) {
-        setState(() {});
-      }
-    });
-
-    super.initState();
-  }
-
-
   @override
   Widget build(BuildContext context) {
-    if(y > 0) {
-      return Container(
-        color: Colors.blue,
-      );
-    } else {
-      return const MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: CameraPage(),
-      );
-    }
+    return MaterialApp(
+      theme: kThemeData,
+      debugShowCheckedModeBanner: false,
+      home: CameraPage(
+        cameraDirection: widget.cameraDirection,
+      ),
+    );
   }
 }
