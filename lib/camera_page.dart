@@ -44,7 +44,11 @@ class _CameraPageState extends State<CameraPage> {
     gyroscopeEvents.listen((GyroscopeEvent event) {
       gyroscopeY = event.y;
 
-      if (gyroscopeY > 2.5 || gyroscopeY < -2.5) {
+      if (gyroscopeY > 2.5) {
+        setState(() {
+          cameraActive = false;
+        });
+      } else if (gyroscopeY < -2.5) {
         setState(() {
           cameraActive = true;
         });
