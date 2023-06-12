@@ -37,20 +37,25 @@ class _CameraPageState extends State<CameraPage> {
   double x = 0;
   double y = 0;
   double gyroscopeY = 0;
-  bool cameraActive = false;
+  bool _inPreview = false;
 
   @override
   void initState() {
     gyroscopeEvents.listen((GyroscopeEvent event) {
       gyroscopeY = event.y;
-
-      if (gyroscopeY > 2.5) {
+      //Rotate down
+      if (gyroscopeY > 2.5 && _isRecording == true && _inPreview == false) {
+        _recordVideo();
         setState(() {
-          cameraActive = false;
+          _isRecording = false;
+          _inPreview = true;
         });
-      } else if (gyroscopeY < -2.5) {
+      }
+      //Rotate up
+      else if (gyroscopeY < -2.5 && _isRecording == false && _inPreview == false) {
+        _recordVideo();
         setState(() {
-          cameraActive = true;
+          _isRecording = true;
         });
       }
     });
@@ -90,22 +95,33 @@ class _CameraPageState extends State<CameraPage> {
     _minAvailableZoom = await _cameraController.getMinZoomLevel();
     _maxAvailableZoom = await _cameraController.getMaxZoomLevel();
 
+    /*await _cameraController.prepareForVideoRecording();
+    await _cameraController.startVideoRecording();
+    await _cameraController.stopVideoRecording();*/
+
     setState(() => _isLoading = false);
   }
 
   _recordVideo() async {
     if (_isRecording) {
+      print('Stop Recording');
       final file = await _cameraController.stopVideoRecording();
-      setState(() => _isRecording = false);
+
       final route = MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => VideoPage(filePath: file.path),
+        builder: (_) {
+          return VideoPage(filePath: file.path);
+        },
       );
-      Navigator.push(context, route);
+      await Navigator.push(context, route).then((value) => setState(() {
+        _inPreview = false;
+      }) );
+
+      //allowChange = false;
     } else {
+      print('Recording Video');
       await _cameraController.prepareForVideoRecording();
       await _cameraController.startVideoRecording();
-      setState(() => _isRecording = true);
     }
   }
 
@@ -174,12 +190,12 @@ class _CameraPageState extends State<CameraPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (!cameraActive) {
+    /*if (!_isRecording) {
       return Container(
         color: Colors.red,
-        child: const Text("Lift the screent to start recording"),
+        child: const Text("Lift the screen to start recording"),
       );
-    } else {
+    } else {*/
       return Scaffold(
         backgroundColor: Colors.black,
         body: _isLoading
@@ -387,5 +403,5 @@ class _CameraPageState extends State<CameraPage> {
       );
     }
   }
-}
+//}
 

@@ -103,8 +103,8 @@ class _VideoPageState extends State<VideoPage> {
 
   @override
   void dispose() {
-    print("disposing variables");
     _trimmer.dispose();
+    print("disposing variables");
     super.dispose();
   }
 
