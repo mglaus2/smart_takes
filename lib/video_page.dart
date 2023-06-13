@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:ffmpeg_kit_flutter/return_code.dart';
 import 'package:flutter/material.dart';
@@ -6,46 +7,78 @@ import 'package:video_player/video_player.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
-import 'package:video_trimmer/video_trimmer.dart';
-
-import 'globals.dart' as globals;
 
 class VideoPage extends StatefulWidget {
   final String filePath;
+  final bool isFirstVideo;
 
-  const VideoPage({Key? key, required this.filePath}) : super(key: key);
+  VideoPage({Key? key, required this.filePath, required this.isFirstVideo}) : super(key: key);
 
   @override
   _VideoPageState createState() => _VideoPageState();
 }
 
 class _VideoPageState extends State<VideoPage> {
-  final Trimmer _trimmer = Trimmer();
-
-  double _startValue = 0.0;
-  double _endValue = 0.0;
-
-  bool _isPlaying = false;
-  bool _progressVisibility = false;
-
+  //final FlutterFFmpeg _flutterFFmpeg = FlutterFFmpeg();
+  late VideoPlayerController _videoPlayerController;
   var tempDir;
-  String rawDocumentPath = "";
-  String outputPath = "";
+  var rawDocumentPath;
+  var outputPath;
   var textFile;
 
+  String path = '';
 
-  void _saveVideo() async {
-    setState(() {
-      _progressVisibility = true;
-    });
+  bool isVideoUsed = false;
 
-    String? _value;
+  @override
+  void dispose() {
+    _videoPlayerController.dispose();
+    super.dispose();
+  }
 
+  Future _initVideoPlayer() async {
+    _videoPlayerController = VideoPlayerController.file(File(widget.filePath));
+    await _videoPlayerController.initialize();
+    await _videoPlayerController.setLooping(true);
+    await _videoPlayerController.play();
+    tempDir = await getApplicationDocumentsDirectory();
+    rawDocumentPath = tempDir.path;
+    path = rawDocumentPath.substring(40, 76);
+    String testPath = DateTime.now().millisecondsSinceEpoch.toString();
+    print(rawDocumentPath);       // document path is different everytime you start app, therefore not allowing you to access previous videos when app closes
+    print(path);
+    print(testPath);
+    textFile = File('$rawDocumentPath/smart_takes_text_file.txt');
+    print('Files Created!');
+  }
+
+  void _addToPreviousVideo() async {
+    String filePath = widget.filePath;
+    if(widget.isFirstVideo) {
+      print("first video");
+      textFile.writeAsString('file /var/mobile/Containers/Data/Application/$path/Documents/camera/videos/REC_5B1C8F69-2AD4-4B5E-B4D7-D303269AE047.mp4 \n', mode: FileMode.write);
+    }
+    else {
+      textFile.writeAsString('file $filePath \n', mode: FileMode.append);
+    }
+
+    GallerySaver.saveVideo(filePath).then((_) {});
+    List<String> files = await textFile.readAsLines();
+    files.forEach((String file) => print(file));
+    print("finished");
+    Navigator.pop(context, true);
+  }
+
+  void _saveVideoToPhone() {
+    var r = Random();
+    String randomString = String.fromCharCodes(List.generate(32, (index) => r.nextInt(33) + 89));
+    outputPath = '$rawDocumentPath/REC_$randomString.mp4';
     FFmpegKit.execute('-y -f concat -safe 0 -i ${textFile.path} -c copy $outputPath').then((session) async {
       final returnCode = await session.getReturnCode();
 
       if (ReturnCode.isSuccess(returnCode)) {
         GallerySaver.saveVideo(outputPath).then((_) {});
+        Navigator.pop(context, true);
         print("success!");
         // SUCCESS
 
@@ -59,53 +92,6 @@ class _VideoPageState extends State<VideoPage> {
 
       }
     });
-
-    GallerySaver.saveVideo(outputPath);
-  }
-
-  void _loadVideo() {
-    _trimmer.loadVideo(videoFile: File(widget.filePath));
-    print("loading video");
-  }
-
-  void _addToPreviousVideo() async {
-    String filePath = widget.filePath;
-    if(globals.isFirstVideo) {
-      print("first video");
-      textFile.writeAsString('file $filePath \n', mode: FileMode.write);
-      globals.isFirstVideo = false;
-    }
-    else {
-      textFile.writeAsString('file $filePath \n', mode: FileMode.append);
-    }
-
-    GallerySaver.saveVideo(filePath).then((_) {});
-    print("finished");
-  }
-
-
-
-  Future<void> _loadFilePathNames() async {
-    tempDir = await getTemporaryDirectory();
-    rawDocumentPath = tempDir.path;
-    outputPath = '$rawDocumentPath/output.mp4';
-    textFile = File('$rawDocumentPath/smart_takes_text_file.txt');
-    print('Files Created!');
-  }
-
-  @override
-  void initState() {
-    super.initState();
-
-    _loadFilePathNames();
-    _loadVideo();
-  }
-
-  @override
-  void dispose() {
-    _trimmer.dispose();
-    print("disposing variables");
-    super.dispose();
   }
 
   @override
@@ -127,41 +113,23 @@ class _VideoPageState extends State<VideoPage> {
           IconButton(
             icon: const Icon(Icons.save),
             onPressed: () {
-              _saveVideo();
+              _saveVideoToPhone();
               var snackBar = SnackBar(content: Text('Saved Video to Phone'));
               ScaffoldMessenger.of(context).showSnackBar(snackBar);
             },
           ),
-          TextButton(
-            child: _isPlaying
-                ? Icon(
-              Icons.pause,
-            )
-                : Icon(
-              Icons.play_arrow,
-            ),
-            onPressed: () async {
-              bool playbackState = await _trimmer.videoPlaybackControl(
-                startValue: _startValue,
-                endValue: _endValue,
-              );
-              setState(() {
-                _isPlaying = playbackState;
-              });
-            },
-          )
         ],
       ),
       extendBodyBehindAppBar: true,
-      body: VideoViewer(trimmer: _trimmer),
-      bottomNavigationBar: TrimViewer(
-        trimmer: _trimmer,
-        viewerHeight: 50.0,
-        viewerWidth: MediaQuery.of(context).size.width,
-        onChangeStart: (value) => _startValue = value,
-        onChangeEnd: (value) => _endValue = value,
-        onChangePlaybackState: (value) =>
-            setState(() => _isPlaying = value),
+      body: FutureBuilder(
+        future: _initVideoPlayer(),
+        builder: (context, state) {
+          if (state.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else {
+            return VideoPlayer(_videoPlayerController);
+          }
+        },
       ),
     );
   }

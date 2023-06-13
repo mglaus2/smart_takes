@@ -1,8 +1,10 @@
 import 'dart:developer';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:smart_takes_app/components/curved_slider.dart';
 import 'package:smart_takes_app/components/zoom_control.dart';
@@ -38,6 +40,9 @@ class _CameraPageState extends State<CameraPage> {
   double y = 0;
   double gyroscopeY = 0;
   bool _inPreview = false;
+  bool isFirstVideo = true;
+  bool _isVideoUsed = false;
+  bool _isFirstLoad = true;
 
   @override
   void initState() {
@@ -105,21 +110,32 @@ class _CameraPageState extends State<CameraPage> {
   _recordVideo() async {
     if (_isRecording) {
       print('Stop Recording');
+      //_isRecording = false;  //comment out when using gyroscope
       final file = await _cameraController.stopVideoRecording();
 
       final route = MaterialPageRoute(
         fullscreenDialog: true,
         builder: (_) {
-          return VideoPage(filePath: file.path);
+          return VideoPage(filePath: file.path, isFirstVideo: isFirstVideo);
         },
       );
       await Navigator.push(context, route).then((value) => setState(() {
         _inPreview = false;
+        if(value != null) {
+          _isVideoUsed = value;
+          isFirstVideo = false;
+        }
       }) );
 
-      //allowChange = false;
+      print('changing states');
+      if(!_isVideoUsed) {
+        await File(file.path).delete();
+        print('file deleted');
+      }
+      _isVideoUsed = false;
     } else {
       print('Recording Video');
+      //_isRecording = true;  //comment out when using gyroscope
       await _cameraController.prepareForVideoRecording();
       await _cameraController.startVideoRecording();
     }
@@ -188,47 +204,56 @@ class _CameraPageState extends State<CameraPage> {
     });
   }
 
+  Future<void> _deleteFiles() async {
+    var tempDir = await getTemporaryDirectory();
+    String rawDocumentPath = tempDir.path;
+  }
+
   @override
   Widget build(BuildContext context) {
-    /*if (!_isRecording) {
+    if (!_isRecording) {
+      /*if(_isFirstLoad) {
+        _deleteFiles();
+        _isFirstLoad = false;
+      }*/
       return Container(
         color: Colors.red,
         child: const Text("Lift the screen to start recording"),
       );
-    } else {*/
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: _isLoading
-            ? Container(
-          color: Colors.black,
-          child: const Center(
-            child: CircularProgressIndicator(),
-          ),
-        )
-            : Center(
-          child: Stack(
-            alignment: Alignment.centerRight,
-            children: [
-              GestureDetector(
-                onScaleStart: _onScaleStart,
-                onScaleUpdate: _onScaleUpdate,
-                onTapDown: _onTapDown,
-                child: Stack(
-                  children: [
-                    Center(
-                      child: Stack(
-                        children: [
-                          AspectRatio(
-                            aspectRatio:
-                            _cameraController.value.aspectRatio,
-                            child: CameraPreview(
-                              _cameraController,
-                              child: Padding(
-                                padding:
-                                const EdgeInsets.only(right: 15.0),
-                                child: Stack(
-                                  children: [
-                                    /*Align(
+    } else {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: _isLoading
+          ? Container(
+        color: Colors.black,
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      )
+          : Center(
+        child: Stack(
+          alignment: Alignment.centerRight,
+          children: [
+            GestureDetector(
+              onScaleStart: _onScaleStart,
+              onScaleUpdate: _onScaleUpdate,
+              onTapDown: _onTapDown,
+              child: Stack(
+                children: [
+                  Center(
+                    child: Stack(
+                      children: [
+                        AspectRatio(
+                          aspectRatio:
+                          _cameraController.value.aspectRatio,
+                          child: CameraPreview(
+                            _cameraController,
+                            child: Padding(
+                              padding:
+                              const EdgeInsets.only(right: 15.0),
+                              child: Stack(
+                                children: [
+                                  /*Align(
                                             alignment: Alignment.centerRight,
                                             child: Transform.rotate(
                                               angle: math.pi / 2,
@@ -245,84 +270,84 @@ class _CameraPageState extends State<CameraPage> {
                                               ),
                                             ),
                                           ),*/
-                                    Align(
-                                      alignment: Alignment.topRight,
-                                      child: IconButton(
-                                          icon: const Icon(
-                                            Icons.settings,
-                                            size: 30,
-                                          ),
-                                          onPressed: () async {
-                                            final result =
-                                            await Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                  builder: (context) =>
-                                                  const SettingsPage()),
-                                            );
-
-                                            // Check if the camera direction has changed and rebuild the camera page
-                                            if (result != null) {
-                                              final cameraDirection =
-                                              result as String;
-                                              setState(() {
-                                                Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                      builder: (context) =>
-                                                          CameraPage(
-                                                              cameraDirection:
-                                                              cameraDirection)),
-                                                );
-                                              });
-                                            }
-                                          }),
-                                    ),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: FloatingActionButton(
-                                        backgroundColor: Colors.red,
-                                        child: Icon(
-                                          _isRecording
-                                              ? Icons.stop
-                                              : Icons.fiber_manual_record,
+                                  Align(
+                                    alignment: Alignment.topRight,
+                                    child: IconButton(
+                                        icon: const Icon(
+                                          Icons.settings,
+                                          size: 30,
                                         ),
-                                        onPressed: () => _recordVideo(),
+                                        onPressed: () async {
+                                          final result =
+                                          await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                const SettingsPage()),
+                                          );
+
+                                          // Check if the camera direction has changed and rebuild the camera page
+                                          if (result != null) {
+                                            final cameraDirection =
+                                            result as String;
+                                            setState(() {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                    builder: (context) =>
+                                                        CameraPage(
+                                                            cameraDirection:
+                                                            cameraDirection)),
+                                              );
+                                            });
+                                          }
+                                        }),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: FloatingActionButton(
+                                      backgroundColor: Colors.red,
+                                      child: Icon(
+                                        _isRecording
+                                            ? Icons.stop
+                                            : Icons.fiber_manual_record,
                                       ),
+                                      onPressed: () => _recordVideo(),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    if (_showFocusCircle)
-                      Positioned(
-                          top: y - 20,
-                          left: x - 20,
-                          child: Container(
-                              height: 40,
-                              width: 40,
-                              decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: Colors.white, width: 1.5))))
-                  ],
-                ),
+                  ),
+                  if (_showFocusCircle)
+                    Positioned(
+                        top: y - 20,
+                        left: x - 20,
+                        child: Container(
+                            height: 40,
+                            width: 40,
+                            decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Colors.white, width: 1.5))))
+                ],
               ),
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: FractionalTranslation(
-                    translation: Offset(0.0, -2),
-                    child: SizedBox(
-                      width: MediaQuery.of(context).size.width / 2,
-                      height: 10,
-                      child: Row(
-                        children: [
-                          /*Expanded(
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: FractionalTranslation(
+                  translation: Offset(0.0, -2),
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width / 2,
+                    height: 10,
+                    child: Row(
+                      children: [
+                        /*Expanded(
                                   child: Slider(
                                     value: _currentScale,
                                     min: _minAvailableZoom,
@@ -338,70 +363,69 @@ class _CameraPageState extends State<CameraPage> {
                                     },
                                   ),
                                 ),*/
-                        ],
-                      ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: FractionalTranslation(
-                    translation: Offset(0.0, 1),
-                    child: GestureDetector(
-                      child: _currentResolution == ResolutionPreset.max
-                          ? const Text("4k")
-                          : const Text(
-                        "HD",
-                      ),
-                      onTap: () {
-                        if (_currentResolution == ResolutionPreset.max) {
-                          _initCamera(CameraLensDirection.back,
-                              ResolutionPreset.veryHigh);
-                          setState(() {
-                            _currentResolution =
-                                ResolutionPreset.veryHigh;
-                          });
-                        } else {
-                          _initCamera(CameraLensDirection.back,
-                              ResolutionPreset.max);
-                          setState(() {
-                            _currentResolution = ResolutionPreset.max;  // just states that it is max when printed
-                          });
-                        }
-                      },
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: FractionalTranslation(
+                  translation: Offset(0.0, 1),
+                  child: GestureDetector(
+                    child: _currentResolution == ResolutionPreset.max
+                        ? const Text("4k")
+                        : const Text(
+                      "HD",
                     ),
-                  ),
-                ),
-              ),
-              SafeArea(
-                child: Align(
-                  alignment: Alignment.bottomLeft,
-                  child: IconButton(
-                      splashColor: Colors.transparent,
-                      highlightColor: Colors.transparent,
-                      icon: Icon(
-                        flashMode == FlashMode.off
-                            ? Icons.flash_off
-                            : Icons.flash_on,
-                        size: 20,
-                        color: flashMode == FlashMode.off
-                            ? Colors.white
-                            : Colors.yellow,
-                      ),
-                      onPressed: () {
+                    onTap: () {
+                      if (_currentResolution == ResolutionPreset.max) {
+                        _initCamera(CameraLensDirection.back,
+                            ResolutionPreset.veryHigh);
                         setState(() {
-                          _toggleFlash();
+                          _currentResolution =
+                              ResolutionPreset.veryHigh;
                         });
-                      }),
+                      } else {
+                        _initCamera(CameraLensDirection.back,
+                            ResolutionPreset.max);
+                        setState(() {
+                          _currentResolution = ResolutionPreset.max;  // just states that it is max when printed
+                        });
+                      }
+                    },
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+            SafeArea(
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: IconButton(
+                    splashColor: Colors.transparent,
+                    highlightColor: Colors.transparent,
+                    icon: Icon(
+                      flashMode == FlashMode.off
+                          ? Icons.flash_off
+                          : Icons.flash_on,
+                      size: 20,
+                      color: flashMode == FlashMode.off
+                          ? Colors.white
+                          : Colors.yellow,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _toggleFlash();
+                      });
+                    }),
+              ),
+            ),
+          ],
         ),
-      );
-    }
+      ),
+    );
   }
-//}
-
+}
+}
