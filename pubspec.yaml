@@ -40,7 +40,7 @@ dependencies:
     shared_preferences: ^2.1.1
     video_player: ^2.2.6
     lottie: ^2.3.2
-    #video_trimmer: ^2.0.0
+    video_trimmer: ^2.0.0
     #video_editor: ^2.4.0
     ffmpeg_kit_flutter: ^5.1.0
 

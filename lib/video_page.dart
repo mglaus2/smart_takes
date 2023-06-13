@@ -54,7 +54,7 @@ class _VideoPageState extends State<VideoPage> {
     String filePath = widget.filePath;
     if(widget.isFirstVideo) {
       print("first video");
-      textFile.writeAsString('file /var/mobile/Containers/Data/Application/$path/Documents/camera/videos/REC_5B1C8F69-2AD4-4B5E-B4D7-D303269AE047.mp4 \n', mode: FileMode.write);
+      textFile.writeAsString('file $filePath \n', mode: FileMode.write);
     }
     else {
       textFile.writeAsString('file $filePath \n', mode: FileMode.append);
@@ -67,10 +67,19 @@ class _VideoPageState extends State<VideoPage> {
     Navigator.pop(context, true);
   }
 
-  void _saveVideoToPhone() {
+  Future<void> _saveVideoToPhone() async {
     var r = Random();
     String randomString = String.fromCharCodes(List.generate(32, (index) => r.nextInt(33) + 89));
     outputPath = '$rawDocumentPath/REC_$randomString.mp4';
+
+    /*List<String> fileContent = await textFile.readAsLines();
+    for (var fileName in fileContent) {
+      fileName = fileName.replaceAll('file ', '');
+      print(fileName);
+      fileName = fileName.substring(0, 45) + path + fileName.substring(76, fileName.length);
+      await File(fileName).delete();
+    }*/
+
     FFmpegKit.execute('-y -f concat -safe 0 -i ${textFile.path} -c copy $outputPath').then((session) async {
       final returnCode = await session.getReturnCode();
 

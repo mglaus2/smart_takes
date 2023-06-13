@@ -40,7 +40,7 @@ class _CameraPageState extends State<CameraPage> {
   double y = 0;
   double gyroscopeY = 0;
   bool _inPreview = false;
-  bool isFirstVideo = true;
+  bool isFirstVideo = false;
   bool _isVideoUsed = false;
   bool _isFirstLoad = true;
 
@@ -205,20 +205,40 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _deleteFiles() async {
+    isFirstVideo = true;
     var tempDir = await getTemporaryDirectory();
     String rawDocumentPath = tempDir.path;
+    /*String tempPath = rawDocumentPath.substring(40, 76);
+    String textFilePath = 'var/mobile/Containers/Data/Application/$tempPath/Documents/smart_takes_text_file.txt';*/
+    String textFilePath = '$rawDocumentPath/smart_takes_text_file.txt';
+    List<String> fileContent = await File(textFilePath).readAsLines();
+    for (var fileName in fileContent) {
+      /*fileName = fileName.replaceAll('file ', '');
+      print(fileName);
+      fileName = fileName.substring(0, 40) + tempPath + fileName.substring(76, fileName.length);*/
+      await File(fileName).delete();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (!_isRecording) {
-      /*if(_isFirstLoad) {
-        _deleteFiles();
-        _isFirstLoad = false;
-      }*/
-      return Container(
-        color: Colors.red,
-        child: const Text("Lift the screen to start recording"),
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Instructions Page'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () {
+                _deleteFiles();
+              },
+            )
+          ],
+        ),
+        body: Container(
+          color: Colors.red,
+          child: const Text("Lift the screen to start recording"),
+        ),
       );
     } else {
       return Scaffold(
