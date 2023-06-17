@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "537472477541",
+    "project_id": "smarttakes-7b410",
+    "storage_bucket": "smarttakes-7b410.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:537472477541:android:e8687506b3d351628d998c",
+        "android_client_info": {
+          "package_name": "com.example.smart_takes_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "537472477541-2q57hvdvliniot6jkv796nuq1k3oil3r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYDZ4_f62rA0anAbLcDWy62nyFpgw4O2c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "537472477541-2q57hvdvliniot6jkv796nuq1k3oil3r.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "537472477541-s275f7t97bg531ojqduds0a1aq35ocrp.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.andres.smartTakesApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
