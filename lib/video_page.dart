@@ -46,6 +46,7 @@ class _VideoPageState extends State<VideoPage> {
   @override
   void dispose() {
     //_videoPlayerController.dispose();
+    print('Disposing Video Player');
     _trimmer.dispose();
     super.dispose();
   }
@@ -219,6 +220,7 @@ class _VideoPageState extends State<VideoPage> {
         trimmer: _trimmer,
         viewerHeight: 50.0,
         viewerWidth: MediaQuery.of(context).size.width,
+        durationStyle: DurationStyle.FORMAT_MM_SS_MS,
         maxVideoLength: const Duration(seconds: 999999),
         onChangeStart: (value) => _startValue = value,
         onChangeEnd: (value) => _endValue = value,

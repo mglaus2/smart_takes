@@ -40,9 +40,11 @@ class _CameraPageState extends State<CameraPage> {
   double _currentScale = 1.0;
   double _minAvailableZoom = 1.0;
   double _maxAvailableZoom = 1.0;
-  double x = 0;
-  double y = 0;
+  double _accelometerX = 0;
+  double _accelometerY = 0;
   double gyroscopeY = 0;
+  double _tapDownX = 0;
+  double _tapDownY = 0;
   bool _inPreview = false;
   bool isFirstVideo = false;
   //bool _isVideoUsed = false;
@@ -50,24 +52,18 @@ class _CameraPageState extends State<CameraPage> {
 
   @override
   void initState() {
-    gyroscopeEvents.listen((GyroscopeEvent event) {
+    /*gyroscopeEvents.listen((GyroscopeEvent event) {
       gyroscopeY = event.y;
       //Rotate down
       if (gyroscopeY > 2.5 && _isRecording == true && _inPreview == false) {
-        _recordVideo();
-        setState(() {
-          _isRecording = false;
-          _inPreview = true;
-        });
+        _stopRecording();
       }
       //Rotate up
       else if (gyroscopeY < -2.5 && _isRecording == false && _inPreview == false) {
-        _recordVideo();
-        setState(() {
-          _isRecording = true;
-        });
+        _startRecording();
       }
-    });
+    });*/
+
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeRight,
     ]);
@@ -76,6 +72,7 @@ class _CameraPageState extends State<CameraPage> {
         widget.cameraDirection,
         widget.zoomPreference,
         _currentResolution);
+
     super.initState();
   }
 
@@ -86,7 +83,26 @@ class _CameraPageState extends State<CameraPage> {
     super.dispose();
   }
 
-  _initCamera(
+  void _initAccelerometer() {
+    print('Starting Accelerometer');
+    accelerometerEvents.listen((AccelerometerEvent event) {
+      _accelometerX = event.x;
+      _accelometerY = event.y;
+      //Rotate up
+      if (_accelometerX > 7 && _isRecording == false && _inPreview == false) {
+        print(_accelometerX);
+        _startRecording();
+      }
+      //Rotate Down
+      else
+      if (_accelometerX < 5 && _isRecording == true && _inPreview == false) {
+        print(_accelometerX);
+        _stopRecording();
+      }
+    });
+  }
+
+  void _initCamera(
       String? direction, String? zoomPreference, ResolutionPreset resolution) async {
     setState(() {
       _isLoading = true;
@@ -118,33 +134,62 @@ class _CameraPageState extends State<CameraPage> {
     if(zoomPreference == 'reset') {
       _cameraController.setZoomLevel(1.0);
       _currentScale = 1.0;
+      //prefs.setDouble('kZoomLevel', 1.0);
     } else if(zoomPreference == 'keep') {
       double zoomLevel = prefs.getDouble('kZoomLevel')!;
       _cameraController.setZoomLevel(zoomLevel);
       _currentScale = zoomLevel;
     }
 
+    _initAccelerometer();
+
     setState(() => _isLoading = false);
   }
 
-  _recordVideo() async {
-    if (_isRecording) {
-      print('Stop Recording');
-      //_isRecording = false;  //comment out when using gyroscope
-      final file = await _cameraController.stopVideoRecording();
+  Future<void> _startRecording() async {
+    setState(() {
+      _isRecording = true;
+      _inPreview = false;
+    });
+    print('Recording Video');
+    //_isRecording = true;  //comment out when using gyroscope
+    //await _cameraController.prepareForVideoRecording();
+    await _cameraController.startVideoRecording();
+  }
 
-      final route = MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) {
-          return VideoPage(filePath: file.path, isFirstVideo: isFirstVideo);
-        },
-      );
+  Future<void> _stopRecording() async {
+    setState(() {
+      _isRecording = false;
+      _inPreview = true;
+    });
+    print('Stop Recording');
+    //_isRecording = false;  //comment out when using gyroscope
+    final file = await _cameraController.stopVideoRecording();
+
+    final route = MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) {
+        return VideoPage(filePath: file.path, isFirstVideo: isFirstVideo);
+      },
+    );
+    if(context.mounted) {
       await Navigator.pushReplacement(context, route);
-    } else {
-      print('Recording Video');
-      //_isRecording = true;  //comment out when using gyroscope
-      await _cameraController.prepareForVideoRecording();
-      await _cameraController.startVideoRecording();
+    }
+  }
+
+  Future<void> _goToSettingsPage() async {
+    setState(() {
+      _inPreview = true;
+    });
+
+    final route = MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) {
+        return SettingsPage();
+      },
+    );
+    if(context.mounted) {
+      await Navigator.pushReplacement(context, route);
     }
   }
 
@@ -186,14 +231,14 @@ class _CameraPageState extends State<CameraPage> {
 
   void _onTapDown(TapDownDetails details) {
     _showFocusCircle = true;
-    x = details.localPosition.dx;
-    y = details.localPosition.dy;
+    _tapDownX = details.localPosition.dx;
+    _tapDownY = details.localPosition.dy;
 
     double fullWidth = MediaQuery.of(context).size.width;
     double cameraHeight = fullWidth * _cameraController.value.aspectRatio;
 
-    double xp = x / fullWidth;
-    double yp = y / cameraHeight;
+    double xp = _tapDownX / fullWidth;
+    double yp = _tapDownY / cameraHeight;
     Offset point = Offset(xp, yp);
 
     _cameraController.setExposurePoint(point);
@@ -258,8 +303,8 @@ class _CameraPageState extends State<CameraPage> {
             ),
             IconButton(
               icon: const Icon(Icons.settings),
-              onPressed: () async {
-                await Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const SettingsPage()));
+              onPressed: () {
+                _goToSettingsPage();
               }
             ),
           ],
@@ -373,8 +418,8 @@ class _CameraPageState extends State<CameraPage> {
                     ),
                     if (_showFocusCircle)
                       Positioned(
-                          top: y - 20,
-                          left: x - 20,
+                          top: _tapDownY - 20,
+                          left: _tapDownX - 20,
                           child: Container(
                               height: 40,
                               width: 40,

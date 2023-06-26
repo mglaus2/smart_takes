@@ -14,10 +14,10 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late String direction;
   late String zoomPreference;
+  late String deviceOrientation;
 
   @override
   void initState() {
-    super.initState();
     getCameraDirection().then((value) {
       setState(() {
         direction = value;
@@ -28,6 +28,7 @@ class _SettingsPageState extends State<SettingsPage> {
         zoomPreference = value;
       });
     });
+    super.initState();
   }
 
   Future<void> toggleCameraDirection() async {

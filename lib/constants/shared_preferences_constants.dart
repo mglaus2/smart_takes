@@ -1,3 +1,4 @@
 const kCameraDirection = "cameraDirection";
 const kZoomPreference = 'zoomPreference';
-const kZoomLevel = 1.0;
+const kZoomLevel = 0.0;
+const kDeviceOrientation = 'deviceOrientation';

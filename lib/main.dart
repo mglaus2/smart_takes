@@ -24,15 +24,28 @@ Future main() async {
   if(prefs.getString(kZoomPreference) == null) {
     prefs.setString(kZoomPreference, 'reset');
   }
-  if(prefs.getDouble('kZoomLevel') == 0.0) {
+  if(prefs.getDouble('kZoomLevel') == null) {
     prefs.setDouble('kZoomLevel', 1.0);
+  }
+  if (prefs.getString(kDeviceOrientation) == null) {
+    prefs.setString(kCameraDirection, "landscape");
   }
   var direction = prefs.getString(kCameraDirection);
   var zoomPreference = prefs.getString(kZoomPreference);
+  var deviceOrientation = prefs.getString(kCameraDirection);
 
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeRight,
-  ]);
+  /*if(deviceOrientation == 'landscape') {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
+
+  if(deviceOrientation == 'portrait') {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+  }*/
+
   runApp(HomePage(cameraDirection: direction, zoomPreference: zoomPreference));
 }
 
