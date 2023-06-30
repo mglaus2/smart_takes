@@ -28,11 +28,11 @@ Future main() async {
     prefs.setDouble('kZoomLevel', 1.0);
   }
   if (prefs.getString(kDeviceOrientation) == null) {
-    prefs.setString(kCameraDirection, "landscape");
+    prefs.setString(kDeviceOrientation, "landscape");
   }
   var direction = prefs.getString(kCameraDirection);
   var zoomPreference = prefs.getString(kZoomPreference);
-  var deviceOrientation = prefs.getString(kCameraDirection);
+  var deviceOrientation = prefs.getString(kDeviceOrientation);
 
   /*if(deviceOrientation == 'landscape') {
     SystemChrome.setPreferredOrientations([

@@ -28,6 +28,11 @@ class _SettingsPageState extends State<SettingsPage> {
         zoomPreference = value;
       });
     });
+    getDeviceOrientation().then((value) {
+      setState(() {
+        deviceOrientation = value;
+      });
+    });
     super.initState();
   }
 
@@ -63,6 +68,22 @@ class _SettingsPageState extends State<SettingsPage> {
     //Navigator.pop(context, direction);
   }
 
+  Future<void> toggleDeviceOrientation() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    var deviceOrientation = prefs.getString(kDeviceOrientation);
+
+    if (deviceOrientation == "landscape") {
+      deviceOrientation = "portrait";
+    } else {
+      deviceOrientation = "landscape";
+    }
+
+    await prefs.setString(kDeviceOrientation, deviceOrientation);
+
+    // Pass the updated camera direction as a parameter when navigating back
+    //Navigator.pop(context, direction);
+  }
+
   Future<void> _returnToCameraPage() async {
     final route = MaterialPageRoute(fullscreenDialog: true,
       builder: (_) {
@@ -86,6 +107,14 @@ class _SettingsPageState extends State<SettingsPage> {
     return zoomPreference!;
   }
 
+  Future<String> getDeviceOrientation() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    var deviceOrientation = prefs.getString(kDeviceOrientation);
+    print(deviceOrientation);
+
+    return deviceOrientation!;
+  }
+
   Future<void> handleCameraDirectionIconTap() async {
     await toggleCameraDirection();
     getCameraDirection().then((value) {
@@ -101,6 +130,16 @@ class _SettingsPageState extends State<SettingsPage> {
     getZoomPreference().then((value) {
       setState(() {
         zoomPreference = value;
+      });
+    });
+    // Refresh the UI or perform any other actions after the direction is toggled
+  }
+
+  Future<void> handleDeviceOrientationIconTap() async {
+    await toggleDeviceOrientation();
+    getDeviceOrientation().then((value) {
+      setState(() {
+        deviceOrientation = value;
       });
     });
     // Refresh the UI or perform any other actions after the direction is toggled
@@ -150,6 +189,22 @@ class _SettingsPageState extends State<SettingsPage> {
                   icon: Icons.camera,
                   onTap: handleZoomPreferenceIconTap,
                   subtitle: this.zoomPreference,
+                );
+              }
+            },
+          ),
+          FutureBuilder(
+            future: getDeviceOrientation(),
+            builder: (BuildContext context, AsyncSnapshot snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return CircularProgressIndicator();
+              } else {
+                String deviceOrientation = snapshot.data ?? "landscape";
+                return SettingsCard(
+                  title: 'Device Orientation',
+                  icon: Icons.camera,
+                  onTap: handleDeviceOrientationIconTap,
+                  subtitle: this.deviceOrientation,
                 );
               }
             },

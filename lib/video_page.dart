@@ -27,6 +27,8 @@ class VideoPage extends StatefulWidget {
 class _VideoPageState extends State<VideoPage> {
   //late VideoPlayerController _videoPlayerController;
   final Trimmer _trimmer = Trimmer();
+  late final SharedPreferences prefs;
+  String _deviceOrientation = '';
   var tempDir;
   var rawDocumentPath;
   var outputPath;
@@ -35,6 +37,7 @@ class _VideoPageState extends State<VideoPage> {
   String path = '';
 
   bool isVideoUsed = false;
+  bool _isLoading = false;
 
   double _startValue = 0.0;
   double _endValue = 0.0;
@@ -64,6 +67,9 @@ class _VideoPageState extends State<VideoPage> {
   }
 
   Future<void> _createFiles() async {
+    prefs = await SharedPreferences.getInstance();
+    _deviceOrientation = prefs.getString(kDeviceOrientation)!;
+
     tempDir = await getApplicationDocumentsDirectory();
     rawDocumentPath = tempDir.path;
     /*path = rawDocumentPath.substring(40, 76);
@@ -100,11 +106,15 @@ class _VideoPageState extends State<VideoPage> {
   }*/
 
   Future<void> _removeCurrentVideo() async {
-    if(!_videoIsUsed) {
+    /*if(!_videoIsUsed) {
       await File(widget.filePath).delete();
       print('file deleted');
-    }
+    }*/
 
+    await File(widget.filePath).delete();
+    var snackBar = SnackBar(content: Text('File Deleted'));
+    await ScaffoldMessenger.of(context).showSnackBar(snackBar);
+    print('file deleted');
     _returnToCamera();
   }
 
@@ -127,12 +137,15 @@ class _VideoPageState extends State<VideoPage> {
     GallerySaver.saveVideo(filePath).then((_) {});
     List<String> files = await textFile.readAsLines();
     files.forEach((String file) => print(file));
+    var snackBar = SnackBar(content: Text('Added Video to Previous Videos'));
+    await ScaffoldMessenger.of(context).showSnackBar(snackBar);
     print("finished");
 
-    _videoIsUsed = true;
+    //_videoIsUsed = true;
+     await _returnToCamera();
   }
 
-  Future<void> _saveVideoToPhone() async {
+  /*Future<void> _saveVideoToPhone() async {
     var r = Random();
     String randomString = String.fromCharCodes(List.generate(32, (index) => r.nextInt(33) + 89));
     outputPath = '$rawDocumentPath/REC_$randomString.mp4';
@@ -162,11 +175,116 @@ class _VideoPageState extends State<VideoPage> {
 
       }
     });
-  }
+  }*/
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Preview'),
+        elevation: 0,
+        backgroundColor: Colors.black26,
+      ),
+      body: Column(
+        //mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+              //mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  Container(
+                    width: MediaQuery.of(context).size.width,
+                    height: MediaQuery.of(context).size.height * 0.63,
+                    child: VideoViewer(
+                      trimmer: _trimmer,
+                    ),
+                  ),
+                  UnconstrainedBox(
+                    alignment: Alignment.topRight,
+                    child: Column(
+                      children: [
+                        TextButton(
+                          child: _isPlaying
+                              ? const Icon(
+                            Icons.pause_circle,
+                            color: Colors.white,
+                            size: 50,
+                          )
+                              : const Icon(
+                            Icons.play_circle,
+                            color: Colors.white,
+                            size: 50,
+                          ),
+                          onPressed: () async {
+                            bool playbackState = await _trimmer.videoPlaybackControl(
+                              startValue: _startValue,
+                              endValue: _endValue,
+                            );
+                            setState(() {
+                              _isPlaying = playbackState;
+                            });
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.check,
+                            size: 50,
+                          ),
+                          onPressed: () {
+                            _addToPreviousVideo();
+                            /*var snackBar = SnackBar(content: Text('Added Video to Previous'));
+                            ScaffoldMessenger.of(context).showSnackBar(snackBar);*/
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete,
+                            size: 50,
+                          ),
+                          onPressed: () async {
+                            _removeCurrentVideo();
+                          },
+                        ),
+                      ],
+                    ),
+                  )
+      ]
+              )
+  ]
+    ),
+    TrimViewer(
+    trimmer: _trimmer,
+    viewerHeight: 50.0,
+    viewerWidth: MediaQuery.of(context).size.width * 0.8,
+    paddingFraction: 0.5,
+    durationStyle: DurationStyle.FORMAT_MM_SS_MS,
+    maxVideoLength: const Duration(seconds: 999999),
+    onChangeStart: (value) => _startValue = value,
+    onChangeEnd: (value) => _endValue = value,
+    onChangePlaybackState: (value) =>
+    setState(() => _isPlaying = value),
+    )
+        ],
+      ),
+      /*bottomNavigationBar: TrimViewer(
+      trimmer: _trimmer,
+      viewerHeight: 50.0,
+      viewerWidth: MediaQuery.of(context).size.width * 0.8,
+      paddingFraction: 0.5,
+      durationStyle: DurationStyle.FORMAT_MM_SS_MS,
+      maxVideoLength: const Duration(seconds: 999999),
+      onChangeStart: (value) => _startValue = value,
+      onChangeEnd: (value) => _endValue = value,
+      onChangePlaybackState: (value) =>
+          setState(() => _isPlaying = value),
+    ),*/
+      );
+
+
+
+    /*return Scaffold(
       appBar: AppBar(
         title: const Text('Preview'),
         elevation: 0,
@@ -183,14 +301,6 @@ class _VideoPageState extends State<VideoPage> {
             onPressed: () {
               _addToPreviousVideo();
               var snackBar = SnackBar(content: Text('Added Video to Previous'));
-              ScaffoldMessenger.of(context).showSnackBar(snackBar);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: () {
-              _saveVideoToPhone();
-              var snackBar = SnackBar(content: Text('Saved Video to Phone'));
               ScaffoldMessenger.of(context).showSnackBar(snackBar);
             },
           ),
@@ -237,7 +347,7 @@ class _VideoPageState extends State<VideoPage> {
           }
         },
       ),*/
-    );
+    );*/
   }
 }
 

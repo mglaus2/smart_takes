@@ -1,9 +1,13 @@
 import 'dart:developer';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:math';
 import 'package:camera/camera.dart';
+import 'package:ffmpeg_kit_flutter/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter/return_code.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:gallery_saver/gallery_saver.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,11 +46,13 @@ class _CameraPageState extends State<CameraPage> {
   double _maxAvailableZoom = 1.0;
   double _accelometerX = 0;
   double _accelometerY = 0;
-  double gyroscopeY = 0;
+  double _gyroscopeX = 0;
+  double _gyroscopeY = 0;
   double _tapDownX = 0;
   double _tapDownY = 0;
   bool _inPreview = false;
   bool isFirstVideo = false;
+  String _deviceOrientation = '';
   //bool _isVideoUsed = false;
   //bool _isFirstLoad = true;
 
@@ -64,9 +70,6 @@ class _CameraPageState extends State<CameraPage> {
       }
     });*/
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeRight,
-    ]);
     print(widget.cameraDirection);
     _initCamera(
         widget.cameraDirection,
@@ -83,25 +86,6 @@ class _CameraPageState extends State<CameraPage> {
     super.dispose();
   }
 
-  void _initAccelerometer() {
-    print('Starting Accelerometer');
-    accelerometerEvents.listen((AccelerometerEvent event) {
-      _accelometerX = event.x;
-      _accelometerY = event.y;
-      //Rotate up
-      if (_accelometerX > 7 && _isRecording == false && _inPreview == false) {
-        print(_accelometerX);
-        _startRecording();
-      }
-      //Rotate Down
-      else
-      if (_accelometerX < 5 && _isRecording == true && _inPreview == false) {
-        print(_accelometerX);
-        _stopRecording();
-      }
-    });
-  }
-
   void _initCamera(
       String? direction, String? zoomPreference, ResolutionPreset resolution) async {
     setState(() {
@@ -110,6 +94,8 @@ class _CameraPageState extends State<CameraPage> {
 
     print('Creating Camera');
     prefs = await SharedPreferences.getInstance();
+    _deviceOrientation = prefs.getString(kDeviceOrientation)!;
+
     CameraLensDirection cameraLensDirection;
     if(direction == 'front') {
       cameraLensDirection = CameraLensDirection.front;
@@ -123,8 +109,21 @@ class _CameraPageState extends State<CameraPage> {
     _cameraController = CameraController(cameraDirection, resolution);
     await _cameraController.initialize();
     await _cameraController.prepareForVideoRecording();
-    await _cameraController
-        .lockCaptureOrientation(DeviceOrientation.landscapeRight);
+
+    if(_deviceOrientation == 'landscape') {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeRight,
+      ]);
+      await _cameraController.lockCaptureOrientation(DeviceOrientation.landscapeRight);
+    }
+    else if(_deviceOrientation == 'portrait') {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+      await _cameraController.lockCaptureOrientation(DeviceOrientation.portraitUp);
+    }
+
+    //await _cameraController.lockCaptureOrientation(DeviceOrientation.landscapeRight);
     await _cameraController.setExposureMode(ExposureMode.auto);
     await _cameraController.setFocusMode(FocusMode.auto);
 
@@ -141,9 +140,42 @@ class _CameraPageState extends State<CameraPage> {
       _currentScale = zoomLevel;
     }
 
-    _initAccelerometer();
+    _initAccelerometerAndGyroscope();
 
     setState(() => _isLoading = false);
+  }
+
+  void _initAccelerometerAndGyroscope() {
+    print('Starting Accelerometer and Gyroscope');
+    gyroscopeEvents.listen((GyroscopeEvent event) {
+      _gyroscopeX = event.x;
+      _gyroscopeY = event.y;
+    });
+
+    accelerometerEvents.listen((AccelerometerEvent event) {
+      _accelometerX = event.x;
+      _accelometerY = event.y;
+      //Rotate up landscape
+      if (_accelometerX > 7.5 && _gyroscopeY > -0.5 && _isRecording == false && _inPreview == false && _deviceOrientation == 'landscape') {
+        print(_gyroscopeY);
+        _startRecording();
+      }
+      //Rotate Down landscape
+      else if (_accelometerX < 6.5 && _isRecording == true && _inPreview == false && _deviceOrientation == 'landscape') {
+        //print(_gyroscopeY);
+        _stopRecording();
+      }
+      //Rotate up portrait
+      else if (_accelometerY > 7 && _gyroscopeX < 0.5 && _isRecording == false && _inPreview == false && _deviceOrientation == 'portrait') {
+        print(_accelometerY);
+        _startRecording();
+      }
+      //Rotate down portrait
+      else if (_accelometerY < 6.5 && _isRecording == true && _inPreview == false && _deviceOrientation == 'portrait') {
+        print(_accelometerY);
+        _stopRecording();
+      }
+    });
   }
 
   Future<void> _startRecording() async {
@@ -152,7 +184,6 @@ class _CameraPageState extends State<CameraPage> {
       _inPreview = false;
     });
     print('Recording Video');
-    //_isRecording = true;  //comment out when using gyroscope
     //await _cameraController.prepareForVideoRecording();
     await _cameraController.startVideoRecording();
   }
@@ -162,9 +193,8 @@ class _CameraPageState extends State<CameraPage> {
       _isRecording = false;
       _inPreview = true;
     });
-    print('Stop Recording');
-    //_isRecording = false;  //comment out when using gyroscope
     final file = await _cameraController.stopVideoRecording();
+    print('Stop Recording');
 
     final route = MaterialPageRoute(
       fullscreenDialog: true,
@@ -288,6 +318,39 @@ class _CameraPageState extends State<CameraPage> {
     }
   }
 
+  Future<void> _saveVideoToPhone() async {    // possibly could have problem when people are too quick from add video to previous to saveToPhone
+    Directory appDir = await getApplicationDocumentsDirectory();
+    var rawDocumentPath = appDir.path;
+    var textFile = File('$rawDocumentPath/smart_takes_text_file.txt');
+    var r = Random();
+    String randomString = String.fromCharCodes(List.generate(32, (index) => r.nextInt(33) + 89));
+    String outputPath = '$rawDocumentPath/REC_$randomString.mp4';
+
+    FFmpegKit.execute('-y -f concat -safe 0 -i ${textFile.path} -c copy $outputPath').then((session) async {
+      final returnCode = await session.getReturnCode();
+
+      if (ReturnCode.isSuccess(returnCode)) {
+        await GallerySaver.saveVideo(outputPath).then((_) {});
+        var snackBar = SnackBar(content: Text('Saved Video to Phone and Files Deleted'));
+        await ScaffoldMessenger.of(context).showSnackBar(snackBar);
+        await _deleteFiles();
+        print("success!");
+        //_videoIsUsed = true;
+      } else if (ReturnCode.isCancel(returnCode)) {
+        print("canceled");
+        // CANCEL
+
+      } else {
+        var snackBar = SnackBar(content: Text('Error: Deleting files'));
+        await ScaffoldMessenger.of(context).showSnackBar(snackBar);
+        await _deleteFiles();
+        print("error");
+        // ERROR
+
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isRecording) {
@@ -296,9 +359,25 @@ class _CameraPageState extends State<CameraPage> {
           title: const Text('Instructions Page'),
           actions: [
             IconButton(
+              icon: const Icon(Icons.exit_to_app),
+              onPressed: () {
+                var snackBar = SnackBar(content: Text('Exiting App'));
+                ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                SystemChannels.platform.invokeMethod('SystemNavigator.pop');
+              },
+            ),
+            /*IconButton(
               icon: const Icon(Icons.delete),
               onPressed: () {
                 _deleteFiles();
+              },
+            ),*/
+            IconButton(
+              icon: const Icon(Icons.save),
+              onPressed: () {
+                _saveVideoToPhone();
+                /*var snackBar = SnackBar(content: Text('Saved Video to Phone'));
+                ScaffoldMessenger.of(context).showSnackBar(snackBar);*/
               },
             ),
             IconButton(
@@ -310,7 +389,7 @@ class _CameraPageState extends State<CameraPage> {
           ],
         ),
         body: Container(
-          child: const Text("Lift the screen to start recording"),
+          child: const Text("Lift the screen to start recording."),
         ),
       );
     } else {
@@ -336,9 +415,12 @@ class _CameraPageState extends State<CameraPage> {
                     Center(
                       child: Stack(
                         children: [
-                          AspectRatio(
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width,
+                            height: MediaQuery.of(context).size.height,
+                          /*AspectRatio(
                             aspectRatio:
-                            _cameraController.value.aspectRatio,
+                            _cameraController.value.aspectRatio,*/
                             child: CameraPreview(
                               _cameraController,
                               child: Padding(
@@ -462,7 +544,7 @@ class _CameraPageState extends State<CameraPage> {
                   ),
                 ),
               ),
-              SafeArea(
+              /*SafeArea(
                 child: Align(
                   alignment: Alignment.topLeft,
                   child: FractionalTranslation(
@@ -492,7 +574,7 @@ class _CameraPageState extends State<CameraPage> {
                     ),
                   ),
                 ),
-              ),
+              ),*/
               SafeArea(
                 child: Align(
                   alignment: Alignment.bottomLeft,
